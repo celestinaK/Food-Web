@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Build a Food Web — Digital Lab</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: #F4F1EA;
+    color: #2C2C2A;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 28px 80px; }
+
+  header {
+    border-bottom: 3px solid #27500A;
+    padding-bottom: 18px;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #639922;
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 30px;
+    margin: 0 0 4px;
+    font-weight: normal;
+  }
+  header .sub {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    color: #5F5E5A;
+  }
+
+  .meta-row {
+    display: flex;
+    gap: 24px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    margin: 16px 0 8px;
+    flex-wrap: wrap;
+  }
+  .meta-row label { color: #5F5E5A; }
+  .meta-row input {
+    border: none;
+    border-bottom: 1px solid #B4B2A9;
+    background: transparent;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    padding: 2px 4px;
+    width: 160px;
+  }
+
+  section.block {
+    background: #FFFDF7;
+    border: 1px solid #D3D1C7;
+    border-radius: 4px;
+    padding: 22px 26px;
+    margin-bottom: 26px;
+  }
+  section.block h2 {
+    font-size: 18px;
+    margin: 0 0 12px;
+    font-weight: normal;
+    border-left: 4px solid #639922;
+    padding-left: 12px;
+  }
+  section.block p {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #444441;
+    margin: 0 0 10px;
+  }
+  .safety {
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    color: #993C1D;
+    background: #FAECE7;
+    border: 1px solid #F0997B;
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-top: 10px;
+  }
+
+  /* ── Canvas / Web builder ───────────────────────────────────── */
+  .lab-area {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .palette {
+    width: 200px;
+    flex-shrink: 0;
+  }
+  .palette h3 {
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #5F5E5A;
+    margin: 0 0 10px;
+  }
+  .card {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    background: #fff;
+    border: 2px solid #888780;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    cursor: grab;
+    user-select: none;
+    text-align: center;
+    transition: box-shadow 0.15s, transform 0.1s;
+  }
+  .card:active { cursor: grabbing; }
+  .card.placed { opacity: 0.35; cursor: not-allowed; }
+  .card:hover:not(.placed) { box-shadow: 0 2px 6px rgba(0,0,0,0.15); transform: translateY(-1px); }
+
+  .canvas-wrap {
+    flex: 1;
+    position: relative;
+  }
+  #canvas {
+    position: relative;
+    width: 100%;
+    height: 480px;
+    background: #fff;
+    border: 2px dashed #B4B2A9;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  #canvas.drag-over { border-color: #639922; background: #F7FAF0; }
+  #svg-lines {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .node {
+    position: absolute;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    font-weight: bold;
+    color: #fff;
+    border-radius: 8px;
+    padding: 10px 6px;
+    width: 96px;
+    text-align: center;
+    cursor: grab;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    user-select: none;
+    z-index: 5;
+  }
+  .node.linking { outline: 3px solid #BA7517; }
+  .node .classify {
+    display: block;
+    font-size: 10px;
+    font-weight: normal;
+    margin-top: 3px;
+    opacity: 0.9;
+  }
+  .node .remove-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 18px;
+    height: 18px;
+    background: #791F1F;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+    cursor: pointer;
+    border: none;
+  }
+
+  .c-producer { background: #3B6D11; }
+  .c-herbivore { background: #0F6E56; }
+  .c-carnivore { background: #993C1D; }
+  .c-omnivore { background: #854F0B; }
+  .c-unclassified { background: #5F5E5A; }
+
+  .canvas-controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  button.tool-btn {
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    background: #fff;
+    border: 1px solid #888780;
+    border-radius: 5px;
+    padding: 7px 14px;
+    cursor: pointer;
+  }
+  button.tool-btn:hover { background: #F1EFE8; }
+  button.tool-btn.active { background: #639922; color: #fff; border-color: #639922; }
+  button.tool-btn.danger { border-color: #993C1D; color: #993C1D; }
+  button.tool-btn.danger:hover { background: #FAECE7; }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    color: #5F5E5A;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+  .hint {
+    font-family: Arial, sans-serif;
+    font-size: 12.5px;
+    color: #5F5E5A;
+    font-style: italic;
+    margin-top: 8px;
+  }
+
+  /* ── Data table ─────────────────────────────────────────────── */
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, sans-serif;
+    font-size: 13.5px;
+    margin-top: 6px;
+  }
+  table.data-table th, table.data-table td {
+    border: 1px solid #D3D1C7;
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  table.data-table th {
+    background: #EAF3DE;
+    font-weight: bold;
+  }
+  table.data-table td.organism-name { font-weight: bold; }
+
+  /* ── Analysis questions ─────────────────────────────────────── */
+  .question {
+    margin-bottom: 18px;
+  }
+  .question .q-text {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  textarea.answer-box {
+    width: 100%;
+    min-height: 70px;
+    font-family: Arial, sans-serif;
+    font-size: 13.5px;
+    border: 1px solid #B4B2A9;
+    border-radius: 4px;
+    padding: 8px 10px;
+    resize: vertical;
+  }
+
+  .submit-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: Arial, sans-serif;
+    margin-top: 10px;
+  }
+  #save-status {
+    font-size: 13px;
+    color: #3B6D11;
+  }
+  button.primary-btn {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    background: #27500A;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    cursor: pointer;
+  }
+  button.primary-btn:hover { background: #1c3a08; }
+
+  @media (max-width: 760px) {
+    .lab-area { flex-direction: column; }
+    .palette { width: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
+    .card { width: 130px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Lesson 3 · Energy, Producers &amp; Consumers</div>
+    <h1>Build a Food Web: Who Eats Whom?</h1>
+    <div class="sub">Digital Lab — drag, connect, and classify on your laptop instead of with yarn and poster paper</div>
+  </header>
+
+  <div class="meta-row">
+    <label>Name: <input type="text" id="student-name"></label>
+    <label>Date: <input type="text" id="lab-date"></label>
+    <label>Period: <input type="text" id="lab-period" style="width:60px"></label>
+  </div>
+
+  <section class="block">
+    <h2>Topic &amp; objective</h2>
+    <p><strong>Topic:</strong> Herbivores, Carnivores, Omnivores</p>
+    <p><strong>Objective:</strong> Students will construct a food web from organism cards, classify each organism as herbivore, carnivore, or omnivore, and trace energy flow.</p>
+  </section>
+
+  <section class="block">
+    <h2>Background</h2>
+    <p>Energy flows through ecosystems from producers to consumers. Herbivores eat only plants, carnivores eat only animals, and omnivores eat both. Arrows in a food web point FROM the organism being eaten TO the organism doing the eating — showing the direction of energy flow.</p>
+  </section>
+
+  <section class="block">
+    <h2>Materials (digital version)</h2>
+    <p>Laptop or Chromebook with this page open — no physical materials needed. The organism cards, connecting lines, and poster space are all built into the lab below.</p>
+    <div class="safety">SAFETY NOTE: No safety concerns for this digital activity — keep your laptop on a flat, stable surface.</div>
+  </section>
+
+  <section class="block">
+    <h2>Procedure</h2>
+    <p>1. Drag each organism card from the left-hand palette onto the canvas below.</p>
+    <p>2. Click "Connect" mode, then click one organism and then the organism that eats it, to draw an arrow showing energy flow. Repeat until all feeding relationships are connected.</p>
+    <p>3. Click each organism's label to cycle through Producer / Herbivore / Carnivore / Omnivore and classify it correctly.</p>
+    <p>4. Use the "Highlight mouse crash" button to see — in a second color — every organism affected if the mouse population disappeared.</p>
+    <p>5. Fill in the Data Table using your completed food web.</p>
+    <p>6. Answer the Analysis Questions at the bottom of the page.</p>
+  </section>
+
+  <section class="block">
+    <h2>Build your food web</h2>
+    <div class="lab-area">
+      <div class="palette">
+        <h3>Organism cards</h3>
+        <div id="card-list"></div>
+        <button class="tool-btn danger" id="reset-btn" style="margin-top:10px;width:100%;">Reset web</button>
+      </div>
+
+      <div class="canvas-wrap">
+        <div id="canvas">
+          <svg id="svg-lines"></svg>
+        </div>
+        <div class="canvas-controls">
+          <button class="tool-btn" id="connect-btn">Connect mode: off</button>
+          <button class="tool-btn" id="crash-btn">Highlight mouse crash</button>
+          <button class="tool-btn" id="clear-crash-btn">Clear highlight</button>
+          <span class="legend">
+            <span><span class="dot" style="background:#3B6D11"></span>Producer</span>
+            <span><span class="dot" style="background:#0F6E56"></span>Herbivore</span>
+            <span><span class="dot" style="background:#993C1D"></span>Carnivore</span>
+            <span><span class="dot" style="background:#854F0B"></span>Omnivore</span>
+          </span>
+        </div>
+        <p class="hint">Drag a card onto the canvas. Click a label to set Producer/Herbivore/Carnivore/Omnivore. Turn on "Connect mode," then click the food source first and the eater second to draw an arrow.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Data table</h2>
+    <p>Use your completed food web above to fill in this table.</p>
+    <table class="data-table">
+      <thead>
+        <tr><th style="width:14%">Organism</th><th style="width:20%">Classification (Prod./Herb./Carn./Omni.)</th><th style="width:33%">Eats:</th><th style="width:33%">Eaten by:</th></tr>
+      </thead>
+      <tbody id="data-table-body">
+        <!-- filled by JS -->
+      </tbody>
+    </table>
+  </section>
+
+  <section class="block">
+    <h2>Analysis questions</h2>
+    <div class="question">
+      <div class="q-text">1. What would happen to the hawk population if the mouse population disappeared? Trace the effect through the web.</div>
+      <textarea class="answer-box" id="q1"></textarea>
+    </div>
+    <div class="question">
+      <div class="q-text">2. Why do food webs have more producers than top-level carnivores?</div>
+      <textarea class="answer-box" id="q2"></textarea>
+    </div>
+    <div class="question">
+      <div class="q-text">3. Is a bear an herbivore, carnivore, or omnivore? How does its classification affect its position on the food web?</div>
+      <textarea class="answer-box" id="q3"></textarea>
+    </div>
+    <div class="submit-row">
+      <span id="save-status"></span>
+      <button class="primary-btn" id="email-btn">Email my answers to my teacher</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+const ORGANISMS = [
+  { id: 'grass', name: 'Grass' },
+  { id: 'cricket', name: 'Cricket' },
+  { id: 'mouse', name: 'Mouse' },
+  { id: 'snake', name: 'Snake' },
+  { id: 'hawk', name: 'Hawk' },
+  { id: 'bear', name: 'Bear' },
+  { id: 'berries', name: 'Berries' },
+  { id: 'deer', name: 'Deer' },
+  { id: 'wolf', name: 'Wolf' },
+  { id: 'fox', name: 'Fox' },
+];
+
+const CLASS_CYCLE = ['Unclassified', 'Producer', 'Herbivore', 'Carnivore', 'Omnivore'];
+const CLASS_SHORT = { 'Unclassified': '—', 'Producer': 'Producer', 'Herbivore': 'Herbivore', 'Carnivore': 'Carnivore', 'Omnivore': 'Omnivore' };
+const CLASS_CLASS = { 'Unclassified': 'c-unclassified', 'Producer': 'c-producer', 'Herbivore': 'c-herbivore', 'Carnivore': 'c-carnivore', 'Omnivore': 'c-omnivore' };
+
+let placedNodes = {};   // id -> {x, y, classification}
+let connections = [];   // {from, to}
+let connectMode = false;
+let connectFirst = null;
+let crashHighlight = false;
+let draggingNode = null;
+let dragOffset = {x:0, y:0};
+
+const canvas = document.getElementById('canvas');
+const svg = document.getElementById('svg-lines');
+const cardList = document.getElementById('card-list');
+
+function renderPalette() {
+  cardList.innerHTML = '';
+  ORGANISMS.forEach(org => {
+    const card = document.createElement('div');
+    card.className = 'card' + (placedNodes[org.id] ? ' placed' : '');
+    card.textContent = org.name;
+    card.draggable = !placedNodes[org.id];
+    card.dataset.id = org.id;
+    card.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', org.id);
+    });
+    cardList.appendChild(card);
+  });
+}
+
+canvas.addEventListener('dragover', (e) => { e.preventDefault(); canvas.classList.add('drag-over'); });
+canvas.addEventListener('dragleave', () => canvas.classList.remove('drag-over'));
+canvas.addEventListener('drop', (e) => {
+  e.preventDefault();
+  canvas.classList.remove('drag-over');
+  const id = e.dataTransfer.getData('text/plain');
+  if (!id || placedNodes[id]) return;
+  const rect = canvas.getBoundingClientRect();
+  let x = e.clientX - rect.left - 48;
+  let y = e.clientY - rect.top - 28;
+  x = Math.max(4, Math.min(x, rect.width - 100));
+  y = Math.max(4, Math.min(y, rect.height - 64));
+  placedNodes[id] = { x, y, classification: 'Unclassified' };
+  renderAll();
+});
+
+function getOrgName(id) {
+  const o = ORGANISMS.find(o => o.id === id);
+  return o ? o.name : id;
+}
+
+function renderNodes() {
+  canvas.querySelectorAll('.node').forEach(n => n.remove());
+  Object.keys(placedNodes).forEach(id => {
+    const data = placedNodes[id];
+    const el = document.createElement('div');
+    el.className = 'node ' + CLASS_CLASS[data.classification];
+    if (connectMode && connectFirst === id) el.classList.add('linking');
+    el.style.left = data.x + 'px';
+    el.style.top = data.y + 'px';
+    el.dataset.id = id;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-btn';
+    removeBtn.textContent = '\u00d7';
+    removeBtn.title = 'Remove organism';
+    removeBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      delete placedNodes[id];
+      connections = connections.filter(c => c.from !== id && c.to !== id);
+      renderAll();
+    });
+    el.appendChild(removeBtn);
+
+    const label = document.createElement('span');
+    label.textContent = getOrgName(id);
+    el.appendChild(label);
+
+    const classifySpan = document.createElement('span');
+    classifySpan.className = 'classify';
+    classifySpan.textContent = CLASS_SHORT[data.classification];
+    classifySpan.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const idx = CLASS_CYCLE.indexOf(data.classification);
+      data.classification = CLASS_CYCLE[(idx + 1) % CLASS_CYCLE.length];
+      renderAll();
+    });
+    el.appendChild(classifySpan);
+
+    el.addEventListener('mousedown', (ev) => {
+      if (ev.target === removeBtn || ev.target === classifySpan) return;
+      if (connectMode) {
+        handleConnectClick(id);
+        return;
+      }
+      draggingNode = id;
+      const rect = canvas.getBoundingClientRect();
+      dragOffset.x = ev.clientX - rect.left - data.x;
+      dragOffset.y = ev.clientY - rect.top - data.y;
+      ev.preventDefault();
+    });
+
+    canvas.appendChild(el);
+  });
+}
+
+document.addEventListener('mousemove', (ev) => {
+  if (!draggingNode) return;
+  const rect = canvas.getBoundingClientRect();
+  let x = ev.clientX - rect.left - dragOffset.x;
+  let y = ev.clientY - rect.top - dragOffset.y;
+  x = Math.max(4, Math.min(x, rect.width - 100));
+  y = Math.max(4, Math.min(y, rect.height - 64));
+  placedNodes[draggingNode].x = x;
+  placedNodes[draggingNode].y = y;
+  renderAll();
+});
+document.addEventListener('mouseup', () => { draggingNode = null; });
+
+function handleConnectClick(id) {
+  if (!connectFirst) {
+    connectFirst = id;
+    renderNodes();
+    return;
+  }
+  if (connectFirst === id) {
+    connectFirst = null;
+    renderNodes();
+    return;
+  }
+  const exists = connections.some(c => c.from === connectFirst && c.to === id);
+  if (!exists) {
+    connections.push({ from: connectFirst, to: id });
+  }
+  connectFirst = null;
+  renderAll();
+}
+
+function renderLines() {
+  svg.innerHTML = '<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke="#5F5E5A"/></marker><marker id="arrowhead-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke="#E24B4A"/></marker></defs>';
+
+  let affected = new Set();
+  if (crashHighlight && placedNodes['mouse']) {
+    let queue = ['mouse'];
+    while (queue.length) {
+      const cur = queue.shift();
+      connections.forEach(c => {
+        if (c.from === cur && !affected.has(c.to)) {
+          affected.add(c.to);
+          queue.push(c.to);
+        }
+      });
+    }
+  }
+
+  connections.forEach(c => {
+    const a = placedNodes[c.from];
+    const b = placedNodes[c.to];
+    if (!a || !b) return;
+    const x1 = a.x + 48, y1 = a.y + 28;
+    const x2 = b.x + 48, y2 = b.y + 28;
+    const isHighlighted = crashHighlight && (c.from === 'mouse' || affected.has(c.from)) && (affected.has(c.to) || c.to === 'mouse');
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('stroke', isHighlighted ? '#E24B4A' : '#888780');
+    line.setAttribute('stroke-width', isHighlighted ? '2.5' : '1.5');
+    line.setAttribute('marker-end', isHighlighted ? 'url(#arrowhead-red)' : 'url(#arrowhead)');
+    svg.appendChild(line);
+  });
+}
+
+function renderDataTable() {
+  const tbody = document.getElementById('data-table-body');
+  tbody.innerHTML = '';
+  const ids = Object.keys(placedNodes);
+  if (ids.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#888780;font-style:italic;">Place organisms on the canvas above to populate this table.</td></tr>';
+    return;
+  }
+  ids.forEach(id => {
+    const eats = connections.filter(c => c.to === id).map(c => getOrgName(c.from)).join(', ') || '\u2014';
+    const eatenBy = connections.filter(c => c.from === id).map(c => getOrgName(c.to)).join(', ') || '\u2014';
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td class="organism-name">' + getOrgName(id) + '</td><td>' + placedNodes[id].classification + '</td><td>' + eats + '</td><td>' + eatenBy + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+function renderAll() {
+  renderPalette();
+  renderNodes();
+  renderLines();
+  renderDataTable();
+}
+
+document.getElementById('connect-btn').addEventListener('click', () => {
+  connectMode = !connectMode;
+  connectFirst = null;
+  document.getElementById('connect-btn').textContent = 'Connect mode: ' + (connectMode ? 'on' : 'off');
+  document.getElementById('connect-btn').classList.toggle('active', connectMode);
+  renderNodes();
+});
+
+document.getElementById('crash-btn').addEventListener('click', () => {
+  crashHighlight = true;
+  renderLines();
+});
+document.getElementById('clear-crash-btn').addEventListener('click', () => {
+  crashHighlight = false;
+  renderLines();
+});
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  placedNodes = {};
+  connections = [];
+  connectFirst = null;
+  crashHighlight = false;
+  renderAll();
+});
+
+const TEACHER_EMAIL = 'kologcel@gcpsmail.cpm';
+
+function buildEmailBody() {
+  const name = document.getElementById('student-name').value || '(name not entered)';
+  const date = document.getElementById('lab-date').value || '(date not entered)';
+  const period = document.getElementById('lab-period').value || '(period not entered)';
+  const q1 = document.getElementById('q1').value || '(no answer entered)';
+  const q2 = document.getElementById('q2').value || '(no answer entered)';
+  const q3 = document.getElementById('q3').value || '(no answer entered)';
+
+  let body = '';
+  body += 'FOOD WEB LAB - SUBMITTED ANSWERS\n';
+  body += '================================\n\n';
+  body += 'Name: ' + name + '\n';
+  body += 'Date: ' + date + '\n';
+  body += 'Period: ' + period + '\n\n';
+
+  body += 'DATA TABLE\n';
+  body += '----------\n';
+  const ids = Object.keys(placedNodes);
+  if (ids.length === 0) {
+    body += '(No organisms were placed on the board.)\n';
+  } else {
+    ids.forEach(id => {
+      const eats = connections.filter(c => c.to === id).map(c => getOrgName(c.from)).join(', ') || '\u2014';
+      const eatenBy = connections.filter(c => c.from === id).map(c => getOrgName(c.to)).join(', ') || '\u2014';
+      body += getOrgName(id) + ' | Classification: ' + placedNodes[id].classification + ' | Eats: ' + eats + ' | Eaten by: ' + eatenBy + '\n';
+    });
+  }
+
+  body += '\nANALYSIS QUESTIONS\n';
+  body += '------------------\n';
+  body += '1. What would happen to the hawk population if the mouse population disappeared? Trace the effect through the web.\n';
+  body += q1 + '\n\n';
+  body += '2. Why do food webs have more producers than top-level carnivores?\n';
+  body += q2 + '\n\n';
+  body += '3. Is a bear an herbivore, carnivore, or omnivore? How does its classification affect its position on the food web?\n';
+  body += q3 + '\n';
+
+  return body;
+}
+
+document.getElementById('email-btn').addEventListener('click', () => {
+  const name = document.getElementById('student-name').value || 'Unnamed Student';
+  const period = document.getElementById('lab-period').value || '';
+  const subject = 'Food Web Lab - ' + name + (period ? ' (Period ' + period + ')' : '');
+  const body = buildEmailBody();
+
+  const mailtoLink = 'mailto:' + encodeURIComponent(TEACHER_EMAIL) +
+    '?subject=' + encodeURIComponent(subject) +
+    '&body=' + encodeURIComponent(body);
+
+  window.location.href = mailtoLink;
+  document.getElementById('save-status').textContent = 'Opening your email app\u2026 if nothing happens, make sure you have an email app set up on this device.';
+});
+
+renderAll();
+</script>
+</body>
+</html>
